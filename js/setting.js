@@ -54,20 +54,6 @@ document.addEventListener("DOMContentLoaded", function () {
 // ✅ รอให้ ESP32 ปิด feed_motor ก่อนเริ่ม spread_motor
 let firstLoad = true; // เพิ่มตัวแปร flag
 
-onValue(ref(db, "/device/feed_motor"), (snapshot) => {
-  if (!snapshot.exists()) return;
-
-  const feedMotorState = snapshot.val();
-
-  if (!firstLoad && feedMotorState === false) {
-    console.log("✅ feed_motor ปิดลง -> เริ่ม spread_motor");
-    updateControl("spread_motor", true);
-    setTimeout(() => updateControl("spread_motor", false), 9000);
-  }
-
-  firstLoad = false; // ตั้งค่าให้ false หลังโหลดครั้งแรก
-});
-
   loadSettings();
 
   document.getElementById("toggle-light").addEventListener("change", function () {
