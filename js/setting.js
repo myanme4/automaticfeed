@@ -27,62 +27,75 @@ const db = getDatabase(app);
 const controlRef = ref(db, "controls");
 
 // ✅ ฟังก์ชันอัปเดต Firebase
-async function updateControl(key, value) {
-  await set(ref(db, "controls/" + key), value)
-    .then(() => console.log(`✅ Updated ${key} to`, value))
-    .catch((error) => console.error("❌ Firebase Error:", error));
+async function updateControlAndDevice(key, value) {
+  try {
+    await set(ref(db, "controls/" + key), value);
+    await set(ref(db, "device/" + key), value);
+    console.log(`✅ Updated ${key} in both controls and device to`, value);
+  } catch (error) {
+    console.error("❌ Firebase Error:", error);
+  }
 }
 
-// ✅ โหลดค่าจาก Firebase
+// ✅ ฟังก์ชันโหลดค่าจาก Firebase และอัปเดต UI
 function loadSettings() {
+  const loadingIndicator = document.getElementById("loadingIndicator");
+  if (loadingIndicator) loadingIndicator.style.display = "block"; // แสดงข้อความกำลังโหลด
+
   onValue(controlRef, (snapshot) => {
     if (!snapshot.exists()) return;
     const data = snapshot.val();
 
+    // ✅ อัปเดต UI จาก Firebase
     document.getElementById("toggle-light").checked = !!data.light;
     document.getElementById("toggle-fan").checked = !!data.fan;
     document.getElementById("feed-food").textContent = data.feed_motor ? "STOP" : "FEED";
     document.getElementById("feed-water").textContent = data.water_valve ? "STOP" : "FEED";
+    document.getElementById("spread-motor").textContent = data.spread_motor ? "STOP" : "SPREAD";
 
     console.log("🔄 Updated UI from Firebase:", data);
   });
+
+  // ✅ ซ่อน Loading Indicator เมื่อโหลดเสร็จ
+  setTimeout(() => {
+    if (loadingIndicator) loadingIndicator.style.display = "none";
+  }, 1500);
 }
 
 // ✅ โหลดค่าจาก Firebase เมื่อหน้าเว็บโหลดเสร็จ
 document.addEventListener("DOMContentLoaded", function () {
   console.log("🌐 Setting page loaded...");
-// ✅ รอให้ ESP32 ปิด feed_motor ก่อนเริ่ม spread_motor
-let firstLoad = true; // เพิ่มตัวแปร flag
 
-  loadSettings();
+  loadSettings(); // โหลดค่าเริ่มต้นจาก Firebase
 
   document.getElementById("toggle-light").addEventListener("change", function () {
-    updateControl("light", this.checked);
+    updateControlAndDevice("light", this.checked);
   });
 
   document.getElementById("toggle-fan").addEventListener("change", function () {
-    updateControl("fan", this.checked);
+    updateControlAndDevice("fan", this.checked);
   });
 
   document.getElementById("feed-food").addEventListener("click", async () => {
     const snapshot = await get(ref(db, "/controls/feed_motor"));
     const isFeeding = snapshot.exists() ? snapshot.val() : false;
-    await updateControl("feed_motor", !isFeeding);
+    await updateControlAndDevice("feed_motor", !isFeeding);
   });
 
   document.getElementById("feed-water").addEventListener("click", async () => {
     const snapshot = await get(ref(db, "/controls/water_valve"));
     const isWatering = snapshot.exists() ? snapshot.val() : false;
-    await updateControl("water_valve", !isWatering);
+    await updateControlAndDevice("water_valve", !isWatering);
   });
 
+  // ✅ ปุ่มรีเซ็ตระบบ
   document.getElementById("reset-system").addEventListener("click", async () => {
     if (confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตระบบ?")) {
-      await updateControl("light", false);
-      await updateControl("fan", false);
-      await updateControl("feed_motor", false);
-      await updateControl("spread_motor", false);
-      await updateControl("water_valve", false);
+      await updateControlAndDevice("light", false);
+      await updateControlAndDevice("fan", false);
+      await updateControlAndDevice("feed_motor", false);
+      await updateControlAndDevice("spread_motor", false);
+      await updateControlAndDevice("water_valve", false);
       alert("✅ ระบบถูกรีเซ็ตเรียบร้อยแล้ว!");
     }
   });

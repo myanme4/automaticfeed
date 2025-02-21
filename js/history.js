@@ -45,7 +45,7 @@ async function loadHistoryData() {
     const logQuery = query(
       logsRef,
       orderByChild("timestamp"),
-      startAt(fifteenDaysAgo.getTime() / 1000)  // ✅ แปลงเป็นวินาที
+      startAt(fifteenDaysAgo.getTime())  // ✅ ใช้มิลลิวินาทีแทน
     );    
     const snapshot = await get(logQuery);
 
