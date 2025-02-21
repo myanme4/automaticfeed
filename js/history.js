@@ -45,8 +45,8 @@ async function loadHistoryData() {
     const logQuery = query(
       logsRef,
       orderByChild("timestamp"),
-      startAt(fifteenDaysAgo.getTime())
-    );
+      startAt(fifteenDaysAgo.getTime() / 1000)  // ✅ แปลงเป็นวินาที
+    );    
     const snapshot = await get(logQuery);
 
     if (spinner) spinner.style.display = "none";
@@ -75,8 +75,8 @@ function processHistoricalData(dataRows) {
   }
 
   let dailyData = {};
-  let tempData = [];
-  let humidityData = [];
+  let tempDataPoints = [];
+  let humidityDataPoints = [];
 
   Object.values(dataRows).forEach((row) => {
     if (!row.timestamp || isNaN(Number(row.timestamp))) {
@@ -85,8 +85,10 @@ function processHistoricalData(dataRows) {
     }
 
     let timestamp = Number(row.timestamp);
-    if (timestamp < 10000000000) timestamp *= 1000;
-    let dateKey = formatDateTH(timestamp);
+    if (timestamp < 10000000000) timestamp *= 1000; // ✅ แปลงเป็นมิลลิวินาทีถ้าจำเป็น
+
+    // ✅ ใช้ formatted_time ถ้ามี หรือใช้ timestamp แปลงเป็นวันที่ถ้าไม่มี
+    let dateKey = row.formatted_time ? row.formatted_time.substring(0, 10) : formatDateTH(timestamp);
 
     if (!dailyData[dateKey]) {
       dailyData[dateKey] = { temperature: row.temperature, humidity: row.humidity, count: 1 };
@@ -102,14 +104,44 @@ function processHistoricalData(dataRows) {
     let values = dailyData[date];
     let avgTemp = (values.temperature / values.count).toFixed(1);
     let avgHumidity = (values.humidity / values.count).toFixed(0);
+
     tableHTML += `<tr><td>${date}</td><td>${avgTemp} °C</td><td>${avgHumidity} %</td></tr>`;
+
+    // ✅ เตรียมข้อมูลสำหรับกราฟ
+    tempDataPoints.push({ label: date, y: parseFloat(avgTemp) });
+    humidityDataPoints.push({ label: date, y: parseFloat(avgHumidity) });
   });
 
   document.getElementById("historyTableBody").innerHTML = tableHTML;
+
+  // ✅ เรียกใช้ฟังก์ชันสร้างกราฟหลังจากประมวลผลข้อมูลเสร็จ
+  renderChart({ temp: tempDataPoints, humidity: humidityDataPoints });
 }
 
-// ✅ โหลดข้อมูลเมื่อหน้าเว็บโหลดเสร็จ
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("✅ history.js is running...");
-  loadHistoryData();
-});
+// ✅ ฟังก์ชันสร้างกราฟด้วย CanvasJS
+function renderChart(dataPoints) {
+  var chart = new CanvasJS.Chart("chartContainer", {
+    theme: "light2",
+    title: { text: "อุณหภูมิและความชื้นย้อนหลัง" },
+    axisX: { title: "วันที่" },
+    axisY: { title: "อุณหภูมิ (°C)", lineColor: "#FF0000" },
+    axisY2: { title: "ความชื้น (%)", lineColor: "#0000FF" },
+    data: [
+      {
+        type: "line",
+        name: "อุณหภูมิ",
+        showInLegend: true,
+        dataPoints: dataPoints.temp,
+        axisYType: "primary"
+      },
+      {
+        type: "line",
+        name: "ความชื้น",
+        showInLegend: true,
+        dataPoints: dataPoints.humidity,
+        axisYType: "secondary"
+      }
+    ]
+  });
+  chart.render();
+}
