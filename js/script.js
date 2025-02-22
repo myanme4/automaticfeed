@@ -16,13 +16,13 @@ $(document).ready(function () {
   // ✅ ตั้งค่า Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyDwOyp3Vdjo5VlE9XT2BCXjKQ411kLsJDQ",
-  authDomain: "dht22-14f97.firebaseapp.com",
-  databaseURL: "https://dht22-14f97-default-rtdb.firebaseio.com",
-  projectId: "dht22-14f97",
-  storageBucket: "dht22-14f97.firebasestorage.app",
-  messagingSenderId: "131749789651",
-  appId: "1:131749789651:web:20c7b9cbd9fca47ee2b926",
-  measurementId: "G-RKV9EL32X4"
+    authDomain: "dht22-14f97.firebaseapp.com",
+    databaseURL: "https://dht22-14f97-default-rtdb.firebaseio.com",
+    projectId: "dht22-14f97",
+    storageBucket: "dht22-14f97.firebasestorage.app",
+    messagingSenderId: "131749789651",
+    appId: "1:131749789651:web:20c7b9cbd9fca47ee2b926",
+    measurementId: "G-RKV9EL32X4"
   };
 
   // ✅ เริ่มต้น Firebase
