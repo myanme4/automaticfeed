@@ -89,65 +89,90 @@ document.addEventListener("DOMContentLoaded", function () {
   addToggleListener("toggle-feed-motor", "feed_motor");
   addToggleListener("toggle-water-valve", "water_valve");
 
-  // ✅ ปุ่ม Feed อาหาร
-  const feedButton = document.getElementById("feed-food");
-  if (feedButton) {
-    feedButton.addEventListener("click", async () => {
-      let countdown = 7;  // ✅ เปลี่ยนเป็น 7 วินาทีให้ตรงกับ Arduino
-      feedButton.disabled = true;
-      await updateControlState("feed_motor", true);
+  // ✅ ปุ่ม Feed อาหาร (อ่านจาก /device/feed_motor แทน /controls/)
+const feedButton = document.getElementById("feed-food");
+if (feedButton) {
+  feedButton.addEventListener("click", async () => {
+    try {
+      // ✅ อ่านค่าปัจจุบันจาก /device/feed_motor
+      const snapshot = await get(ref(db, "device/feed_motor"));
+      const currentState = snapshot.exists() ? snapshot.val() : false;
 
-      const countdownInterval = setInterval(() => {
-        if (countdown > 0) {
-          feedButton.textContent = `กำลังให้อาหาร... ${countdown} วิ`;
-          countdown--;
-        } else {
-          clearInterval(countdownInterval);
-          updateControlState("feed_motor", false);
-          feedButton.disabled = false;
-          feedButton.textContent = "FEED";
-          alert("✅ ให้อาหารเสร็จสิ้น!");
-        }
-      }, 1000);
-    });
-  }
+      // ✅ สลับสถานะ (เปิด -> ปิด, ปิด -> เปิด)
+      const newState = !currentState;
 
-  // ✅ ปุ่ม Feed น้ำ
-  const feedWater = document.getElementById("feed-water");
+      // ✅ อัปเดตค่าไปที่ /controls/feed_motor เพื่อให้ ESP32 จัดการ
+      await updateControlState("feed_motor", newState);
+
+      console.log(`🍽 อัปเดต feed_motor ใน Firebase → ${newState ? "ON ✅" : "OFF ❌"}`);
+    } catch (error) {
+      console.error("❌ เกิดข้อผิดพลาดในการสั่ง Feed Food:", error);
+    }
+  });
+}
+
+// ✅ ปุ่ม Feed น้ำ (อ่านจาก /device/water_valve แทน /controls/)
+const feedWater = document.getElementById("feed-water");
 if (feedWater) {
   feedWater.addEventListener("click", async () => {
-    feedWater.disabled = true;  // ✅ ป้องกันการกดซ้ำ
-    await updateControlState("water_valve", true);
-    
-    let countdown = 10;
-    const countdownInterval = setInterval(() => {
-      if (countdown > 0) {
-        feedWater.textContent = `ให้น้ำ... ${countdown} วิ`;
-        countdown--;
-      } else {
-        clearInterval(countdownInterval);
-        updateControlState("water_valve", false);
-        feedWater.disabled = false;
-        feedWater.textContent = "FEED WATER";
-        alert("✅ ให้น้ำเสร็จสิ้น!");
-      }
-    }, 1000);
+    try {
+      // ✅ อ่านค่าปัจจุบันจาก /device/water_valve
+      const snapshot = await get(ref(db, "device/water_valve"));
+      const currentState = snapshot.exists() ? snapshot.val() : false;
+
+      // ✅ สลับสถานะ (เปิด -> ปิด, ปิด -> เปิด)
+      const newState = !currentState;
+
+      // ✅ อัปเดตค่าไปที่ /controls/water_valve เพื่อให้ ESP32 จัดการ
+      await updateControlState("water_valve", newState);
+
+      console.log(`💧 อัปเดต water_valve ใน Firebase → ${newState ? "ON ✅" : "OFF ❌"}`);
+    } catch (error) {
+      console.error("❌ เกิดข้อผิดพลาดในการสั่ง Feed Water:", error);
+    }
   });
 }
 
   // ✅ ปุ่มรีเซ็ตระบบ
-  const resetSystem = document.getElementById("reset-system");
-  if (resetSystem) {
-    resetSystem.addEventListener("click", async () => {
-      if (confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตระบบ?")) {
-        await updateControlState("light", false);
-        await updateControlState("fan", false);
-        await updateControlState("feed_motor", false);
-        await updateControlState("spread_motor", false);
-        await updateControlState("water_valve", false);
+const resetSystem = document.getElementById("reset-system");
+if (resetSystem) {
+  resetSystem.addEventListener("click", async () => {
+    if (confirm("⚠️ คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตระบบ?")) {
+      // ✅ ตั้งค่าทุกอย่างเป็น false ที่ /controls/
+      await updateControlState("light", false);
+      await updateControlState("fan", false);
+      await updateControlState("feed_motor", false);
+      await updateControlState("spread_motor", false);
+      await updateControlState("water_valve", false);
 
-        alert("✅ ระบบถูกรีเซ็ตเรียบร้อยแล้ว!");
-      }
-    });
+      alert("✅ ระบบถูกรีเซ็ตเรียบร้อยแล้ว!");
+
+      // ✅ หลังจากรีเซ็ต ดึงค่าล่าสุดจาก /device/ เพื่ออัปเดต UI
+      refreshToggleState();
+    }
+  });
+}
+
+// ✅ ฟังก์ชันอัปเดตปุ่ม Toggle ตามค่าใน /device/
+async function refreshToggleState() {
+  try {
+    const snapshot = await get(ref(db, "device"));
+    if (!snapshot.exists()) {
+      console.warn("⚠️ ไม่พบข้อมูลจาก /device/");
+      return;
+    }
+    const data = snapshot.val();
+
+    // ✅ อัปเดตสถานะปุ่ม Toggle ตามค่าใน /device/
+    document.getElementById("toggle-light").checked = data.light;
+    document.getElementById("toggle-fan").checked = data.fan;
+    document.getElementById("toggle-feed-motor").checked = data.feed_motor;
+    document.getElementById("toggle-spread-motor").checked = data.spread_motor;
+    document.getElementById("toggle-water-valve").checked = data.water_valve;
+
+    console.log("🔄 ปรับสถานะปุ่ม Toggle ตามค่าจริงใน /device/");
+  } catch (error) {
+    console.error("❌ เกิดข้อผิดพลาดในการดึงค่าจาก /device/:", error);
   }
+}
 });
